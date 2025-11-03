@@ -72,6 +72,10 @@ const Index = () => {
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const weaponMeshRef = useRef<THREE.Group | null>(null);
   const mouseLockedRef = useRef(false);
+  const [cameraMode, setCameraMode] = useState<'first' | 'third' | 'front'>('first');
+  const playerModelRef = useRef<THREE.Group | null>(null);
+  const chinaHatRef = useRef<THREE.Mesh | null>(null);
+  const fireTrailRef = useRef<THREE.Points[]>([]);
 
   useEffect(() => {
     shootSoundRef.current = new Audio('data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQAAAAA=');
@@ -253,6 +257,50 @@ const Index = () => {
     scene.add(camera);
     weaponMeshRef.current = weaponMesh;
 
+    const createPlayerModel = () => {
+      const playerGroup = new THREE.Group();
+      
+      const bodyGeometry = new THREE.CapsuleGeometry(0.3, 1.0, 4, 8);
+      const bodyMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3b82f6,
+        roughness: 0.7,
+      });
+      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+      body.position.y = 0.8;
+      playerGroup.add(body);
+
+      const headGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+      const headMaterial = new THREE.MeshStandardMaterial({
+        color: 0xfbbf24,
+      });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 1.5;
+      playerGroup.add(head);
+
+      playerGroup.visible = false;
+      return playerGroup;
+    };
+
+    const playerModel = createPlayerModel();
+    scene.add(playerModel);
+    playerModelRef.current = playerModel;
+
+    const createChinaHat = () => {
+      const hatGeometry = new THREE.ConeGeometry(0.5, 0.3, 8);
+      const hatMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff6b6b,
+        emissive: 0xff0000,
+        emissiveIntensity: 0.5,
+      });
+      const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+      hat.visible = false;
+      return hat;
+    };
+
+    const chinaHat = createChinaHat();
+    scene.add(chinaHat);
+    chinaHatRef.current = chinaHat;
+
     const createBot = (x: number, z: number) => {
       const botGeometry = new THREE.CapsuleGeometry(0.4, 1.2, 4, 8);
       const botMaterial = new THREE.MeshStandardMaterial({
@@ -304,6 +352,13 @@ const Index = () => {
       }
       if (e.key.toLowerCase() === 'p') {
         setShowVisuals((prev) => !prev);
+      }
+      if (e.key.toLowerCase() === 'l' || e.key.toLowerCase() === 'д') {
+        setCameraMode((prev) => {
+          if (prev === 'first') return 'third';
+          if (prev === 'third') return 'front';
+          return 'first';
+        });
       }
     };
 
@@ -428,8 +483,80 @@ const Index = () => {
         playerPosRef.current.y = 1.6;
       }
 
-      camera.position.copy(playerPosRef.current);
+      if (cameraMode === 'first') {
+        camera.position.copy(playerPosRef.current);
+        if (weaponMeshRef.current) weaponMeshRef.current.visible = true;
+        if (playerModelRef.current) playerModelRef.current.visible = false;
+      } else if (cameraMode === 'third') {
+        const offset = new THREE.Vector3(0, 1, 3);
+        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotRef.current.yaw);
+        camera.position.copy(playerPosRef.current).add(offset);
+        camera.position.y += 1;
+        if (weaponMeshRef.current) weaponMeshRef.current.visible = false;
+        if (playerModelRef.current) {
+          playerModelRef.current.visible = true;
+          playerModelRef.current.position.copy(playerPosRef.current);
+          playerModelRef.current.rotation.y = playerRotRef.current.yaw;
+        }
+      } else if (cameraMode === 'front') {
+        const offset = new THREE.Vector3(0, 1, -3);
+        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotRef.current.yaw);
+        camera.position.copy(playerPosRef.current).add(offset);
+        camera.position.y += 1;
+        if (weaponMeshRef.current) weaponMeshRef.current.visible = false;
+        if (playerModelRef.current) {
+          playerModelRef.current.visible = true;
+          playerModelRef.current.position.copy(playerPosRef.current);
+          playerModelRef.current.rotation.y = playerRotRef.current.yaw + Math.PI;
+        }
+      }
       camera.rotation.set(playerRotRef.current.pitch, playerRotRef.current.yaw, 0, 'YXZ');
+
+      if (chinaHatRef.current && visualsEnabled.china) {
+        chinaHatRef.current.visible = true;
+        chinaHatRef.current.position.copy(playerPosRef.current);
+        chinaHatRef.current.position.y += 2.3;
+        chinaHatRef.current.rotation.y += 0.05;
+      } else if (chinaHatRef.current) {
+        chinaHatRef.current.visible = false;
+      }
+
+      if (moveVector.length() > 0.01) {
+        const particleGeometry = new THREE.BufferGeometry();
+        const particleCount = 5;
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        
+        for (let i = 0; i < particleCount; i++) {
+          positions[i * 3] = playerPosRef.current.x + (Math.random() - 0.5) * 0.5;
+          positions[i * 3 + 1] = playerPosRef.current.y + Math.random() * 0.3;
+          positions[i * 3 + 2] = playerPosRef.current.z + (Math.random() - 0.5) * 0.5;
+          
+          colors[i * 3] = 1.0;
+          colors[i * 3 + 1] = Math.random() * 0.5;
+          colors[i * 3 + 2] = 0.0;
+        }
+        
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        const particleMaterial = new THREE.PointsMaterial({
+          size: 0.2,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.8,
+          blending: THREE.AdditiveBlending,
+        });
+        
+        const particles = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particles);
+        fireTrailRef.current.push(particles);
+        
+        setTimeout(() => {
+          scene.remove(particles);
+          fireTrailRef.current = fireTrailRef.current.filter(p => p !== particles);
+        }, 500);
+      }
 
       botsRef.current.forEach((bot) => {
         const directionToPlayer = new THREE.Vector3()
@@ -494,7 +621,7 @@ const Index = () => {
       window.removeEventListener('resize', handleResize);
       mountRef.current?.removeChild(renderer.domElement);
     };
-  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled, isLoading, gameStarted]);
+  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled, isLoading, gameStarted, cameraMode]);
 
   const buyWeapon = (weapon: Weapon) => {
     if (money >= weapon.price) {
@@ -846,9 +973,11 @@ const Index = () => {
       </div>}
 
       {gameStarted && <div className="absolute top-4 right-4 text-white text-sm space-y-1 pointer-events-none select-none bg-black/50 px-3 py-2 rounded-lg backdrop-blur-sm">
+        <div className="text-yellow-400 font-bold mb-2">Камера: {cameraMode === 'first' ? '1-е лицо' : cameraMode === 'third' ? '3-е лицо' : 'Спереди'}</div>
         <div>WASD / ФЫВА - Движение</div>
         <div>Мышь - Обзор</div>
         <div>ЛКМ - Стрельба</div>
+        <div>L - Смена камеры</div>
         <div>B - Меню закупки</div>
         <div>Q - Читы</div>
         <div>P - Визуалы</div>

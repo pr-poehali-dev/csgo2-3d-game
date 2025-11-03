@@ -29,6 +29,7 @@ const WEAPONS: Weapon[] = [
 
 const Index = () => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showBuyMenu, setShowBuyMenu] = useState(false);
   const [showCheats, setShowCheats] = useState(false);
   const [showVisuals, setShowVisuals] = useState(false);
@@ -37,6 +38,10 @@ const Index = () => {
   const [currentWeapon, setCurrentWeapon] = useState<Weapon>(WEAPONS[0]);
   const [ammo, setAmmo] = useState(20);
   const [kills, setKills] = useState(0);
+  
+  const shootSoundRef = useRef<HTMLAudioElement | null>(null);
+  const hitSoundRef = useRef<HTMLAudioElement | null>(null);
+  const killSoundRef = useRef<HTMLAudioElement | null>(null);
   const [cheatsEnabled, setCheatsEnabled] = useState({
     aimbot: false,
     esp: false,
@@ -61,11 +66,19 @@ const Index = () => {
   const mouseLockedRef = useRef(false);
 
   useEffect(() => {
-    if (!mountRef.current) return;
+    shootSoundRef.current = new Audio('data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQAAAAA=');
+    hitSoundRef.current = new Audio('data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQAAAAA=');
+    killSoundRef.current = new Audio('data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQAAAAA=');
+    
+    setTimeout(() => setIsLoading(false), 2000);
+  }, []);
+
+  useEffect(() => {
+    if (!mountRef.current || isLoading) return;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.Fog(0x87ceeb, 0, 150);
+    scene.fog = new THREE.Fog(0x87ceeb, 0, 250);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(
@@ -100,7 +113,7 @@ const Index = () => {
     sunLight.shadow.camera.bottom = -100;
     scene.add(sunLight);
 
-    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundGeometry = new THREE.PlaneGeometry(500, 500);
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x4a5568,
       roughness: 0.8,
@@ -126,14 +139,22 @@ const Index = () => {
       return box;
     };
 
-    createBox(20, 2, 0, 4, 4, 4, 0xb45309);
-    createBox(-20, 2, 0, 4, 4, 4, 0xb45309);
-    createBox(0, 2, 20, 4, 4, 4, 0xb45309);
-    createBox(0, 2, -20, 4, 4, 4, 0xb45309);
-    createBox(10, 1.5, 10, 8, 3, 2, 0x6b7280);
-    createBox(-10, 1.5, -10, 8, 3, 2, 0x6b7280);
-    createBox(15, 4, -15, 6, 8, 6, 0x991b1b);
-    createBox(-15, 3, 15, 10, 6, 4, 0x065f46);
+    createBox(40, 2, 0, 6, 4, 6, 0xb45309);
+    createBox(-40, 2, 0, 6, 4, 6, 0xb45309);
+    createBox(0, 2, 40, 6, 4, 6, 0xb45309);
+    createBox(0, 2, -40, 6, 4, 6, 0xb45309);
+    createBox(25, 1.5, 25, 12, 3, 3, 0x6b7280);
+    createBox(-25, 1.5, -25, 12, 3, 3, 0x6b7280);
+    createBox(30, 4, -30, 8, 8, 8, 0x991b1b);
+    createBox(-30, 3, 30, 15, 6, 6, 0x065f46);
+    createBox(50, 2, 50, 10, 4, 10, 0x92400e);
+    createBox(-50, 2, -50, 10, 4, 10, 0x92400e);
+    createBox(60, 1.5, 0, 5, 3, 20, 0x4b5563);
+    createBox(-60, 1.5, 0, 5, 3, 20, 0x4b5563);
+    createBox(0, 1.5, 60, 20, 3, 5, 0x4b5563);
+    createBox(0, 1.5, -60, 20, 3, 5, 0x4b5563);
+    createBox(35, 2, -50, 8, 4, 8, 0x7c2d12);
+    createBox(-35, 2, 50, 8, 4, 8, 0x7c2d12);
 
     const createWeaponMesh = () => {
       const weaponGroup = new THREE.Group();
@@ -207,10 +228,12 @@ const Index = () => {
     };
 
     botsRef.current = [
-      createBot(25, 10),
-      createBot(-25, -10),
-      createBot(30, -20),
-      createBot(-15, 25),
+      createBot(45, 20),
+      createBot(-45, -20),
+      createBot(55, -40),
+      createBot(-30, 50),
+      createBot(60, 30),
+      createBot(-60, -30),
     ];
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -249,6 +272,12 @@ const Index = () => {
         if (ammo > 0) {
           setAmmo((prev) => prev - 1);
           
+          if (shootSoundRef.current) {
+            shootSoundRef.current.currentTime = 0;
+            shootSoundRef.current.volume = 0.3;
+            shootSoundRef.current.play().catch(() => {});
+          }
+          
           const raycaster = new THREE.Raycaster();
           raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
@@ -273,6 +302,18 @@ const Index = () => {
               botsRef.current = botsRef.current.filter((bot) => bot !== hitBot);
               setKills((prev) => prev + 1);
               setMoney((prev) => prev + 300);
+              
+              if (killSoundRef.current) {
+                killSoundRef.current.currentTime = 0;
+                killSoundRef.current.volume = 0.4;
+                killSoundRef.current.play().catch(() => {});
+              }
+            } else if (hitBot) {
+              if (hitSoundRef.current) {
+                hitSoundRef.current.currentTime = 0;
+                hitSoundRef.current.volume = 0.3;
+                hitSoundRef.current.play().catch(() => {});
+              }
             }
           }
 
@@ -299,7 +340,7 @@ const Index = () => {
     const animate = () => {
       requestAnimationFrame(animate);
 
-      const speed = cheatsEnabled.speed ? 0.3 : 0.15;
+      const speed = cheatsEnabled.speed ? 0.2 : 0.08;
       const moveVector = new THREE.Vector3();
 
       if (keysRef.current['w'] || keysRef.current['ц']) {
@@ -394,7 +435,7 @@ const Index = () => {
       window.removeEventListener('resize', handleResize);
       mountRef.current?.removeChild(renderer.domElement);
     };
-  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled]);
+  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled, isLoading]);
 
   const buyWeapon = (weapon: Weapon) => {
     if (money >= weapon.price) {
@@ -415,6 +456,26 @@ const Index = () => {
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black">
+      {isLoading && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center z-50">
+          <div className="text-center space-y-6">
+            <div className="text-6xl font-bold text-white mb-4 animate-pulse">
+              CS:GO 2
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-3 h-3 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <div className="text-gray-400 text-lg mt-4">Загрузка карты...</div>
+            <div className="text-gray-500 text-sm mt-8">
+              <div>⚡ WebGL 3D Engine</div>
+              <div>🎮 Advanced AI</div>
+              <div>🔊 Sound System</div>
+            </div>
+          </div>
+        </div>
+      )}
       <div ref={mountRef} className="w-full h-full" />
 
       <div className="absolute top-4 left-4 text-white font-bold space-y-2 pointer-events-none select-none">

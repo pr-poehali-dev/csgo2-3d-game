@@ -18,6 +18,7 @@ interface Bot {
   velocity: THREE.Vector3;
   health: number;
   target: THREE.Vector3;
+  lastShot: number;
 }
 
 const WEAPONS: Weapon[] = [
@@ -67,7 +68,7 @@ const Index = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const botsRef = useRef<Bot[]>([]);
-  const playerPosRef = useRef(new THREE.Vector3(0, 1.6, 0));
+  const playerPosRef = useRef(new THREE.Vector3(0, 1.2, 0));
   const playerRotRef = useRef({ yaw: 0, pitch: 0 });
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const weaponMeshRef = useRef<THREE.Group | null>(null);
@@ -260,21 +261,21 @@ const Index = () => {
     const createPlayerModel = () => {
       const playerGroup = new THREE.Group();
       
-      const bodyGeometry = new THREE.CapsuleGeometry(0.3, 1.0, 4, 8);
+      const bodyGeometry = new THREE.CapsuleGeometry(0.2, 0.7, 4, 8);
       const bodyMaterial = new THREE.MeshStandardMaterial({
         color: 0x3b82f6,
         roughness: 0.7,
       });
       const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-      body.position.y = 0.8;
+      body.position.y = 0.6;
       playerGroup.add(body);
 
-      const headGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+      const headGeometry = new THREE.SphereGeometry(0.18, 8, 8);
       const headMaterial = new THREE.MeshStandardMaterial({
         color: 0xfbbf24,
       });
       const head = new THREE.Mesh(headGeometry, headMaterial);
-      head.position.y = 1.5;
+      head.position.y = 1.1;
       playerGroup.add(head);
 
       playerGroup.visible = false;
@@ -302,32 +303,33 @@ const Index = () => {
     chinaHatRef.current = chinaHat;
 
     const createBot = (x: number, z: number) => {
-      const botGeometry = new THREE.CapsuleGeometry(0.4, 1.2, 4, 8);
+      const botGeometry = new THREE.CapsuleGeometry(0.25, 0.8, 4, 8);
       const botMaterial = new THREE.MeshStandardMaterial({
         color: 0xdc2626,
         roughness: 0.6,
         metalness: 0.2,
       });
       const botMesh = new THREE.Mesh(botGeometry, botMaterial);
-      botMesh.position.set(x, 1, z);
+      botMesh.position.set(x, 0.7, z);
       botMesh.castShadow = true;
       scene.add(botMesh);
 
-      const headGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+      const headGeometry = new THREE.SphereGeometry(0.2, 8, 8);
       const headMaterial = new THREE.MeshStandardMaterial({
         color: 0xfbbf24,
         roughness: 0.7,
       });
       const head = new THREE.Mesh(headGeometry, headMaterial);
-      head.position.set(0, 1, 0);
+      head.position.set(0, 0.7, 0);
       botMesh.add(head);
 
       return {
         mesh: botMesh,
-        position: new THREE.Vector3(x, 1, z),
+        position: new THREE.Vector3(x, 0.7, z),
         velocity: new THREE.Vector3(),
         health: 100,
         target: new THREE.Vector3(),
+        lastShot: 0,
       };
     };
 
@@ -339,6 +341,13 @@ const Index = () => {
       createBot(60, 30),
       createBot(-60, -30),
     ];
+
+    const obstacles: THREE.Mesh[] = [];
+    scene.traverse((object) => {
+      if (object instanceof THREE.Mesh && object !== ground) {
+        obstacles.push(object);
+      }
+    });
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.key.toLowerCase()] = true;
@@ -477,10 +486,33 @@ const Index = () => {
       }
 
       moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotRef.current.yaw);
-      playerPosRef.current.add(moveVector);
+      
+      if (!cheatsEnabled.noclip) {
+        const newPosition = playerPosRef.current.clone().add(moveVector);
+        let canMove = true;
+
+        const playerBox = new THREE.Box3(
+          new THREE.Vector3(newPosition.x - 0.3, newPosition.y - 0.6, newPosition.z - 0.3),
+          new THREE.Vector3(newPosition.x + 0.3, newPosition.y + 0.6, newPosition.z + 0.3)
+        );
+
+        for (const obstacle of obstacles) {
+          const obstacleBox = new THREE.Box3().setFromObject(obstacle);
+          if (playerBox.intersectsBox(obstacleBox)) {
+            canMove = false;
+            break;
+          }
+        }
+
+        if (canMove) {
+          playerPosRef.current.add(moveVector);
+        }
+      } else {
+        playerPosRef.current.add(moveVector);
+      }
 
       if (!cheatsEnabled.fly && !cheatsEnabled.noclip) {
-        playerPosRef.current.y = 1.6;
+        playerPosRef.current.y = 1.2;
       }
 
       if (cameraMode === 'first') {
@@ -515,7 +547,7 @@ const Index = () => {
       if (chinaHatRef.current && visualsEnabled.china) {
         chinaHatRef.current.visible = true;
         chinaHatRef.current.position.copy(playerPosRef.current);
-        chinaHatRef.current.position.y += 2.3;
+        chinaHatRef.current.position.y += 1.8;
         chinaHatRef.current.rotation.y += 0.05;
       } else if (chinaHatRef.current) {
         chinaHatRef.current.visible = false;
@@ -558,18 +590,15 @@ const Index = () => {
         }, 500);
       }
 
+      const currentTime = Date.now();
       botsRef.current.forEach((bot) => {
         const directionToPlayer = new THREE.Vector3()
           .subVectors(playerPosRef.current, bot.position)
           .normalize();
 
-        if (cheatsEnabled.aimbot) {
-          bot.mesh.lookAt(playerPosRef.current);
-        }
-
         const distanceToPlayer = bot.position.distanceTo(playerPosRef.current);
         
-        if (distanceToPlayer > 5) {
+        if (distanceToPlayer > 8 && distanceToPlayer < 80) {
           bot.velocity.copy(directionToPlayer).multiplyScalar(0.05);
           bot.position.add(bot.velocity);
           bot.mesh.position.copy(bot.position);
@@ -580,6 +609,39 @@ const Index = () => {
           bot.position.y,
           playerPosRef.current.z
         ));
+
+        if (distanceToPlayer < 50 && currentTime - bot.lastShot > 2000) {
+          bot.lastShot = currentTime;
+          
+          const raycaster = new THREE.Raycaster();
+          const botDirection = new THREE.Vector3()
+            .subVectors(playerPosRef.current, bot.position)
+            .normalize();
+          raycaster.set(bot.position, botDirection);
+
+          const intersects = raycaster.intersectObjects(obstacles, true);
+          const playerDistance = bot.position.distanceTo(playerPosRef.current);
+          
+          const canSeePlayer = intersects.length === 0 || intersects[0].distance > playerDistance;
+          
+          if (canSeePlayer && Math.random() > 0.3) {
+            const damage = Math.floor(Math.random() * 15) + 10;
+            setHealth((prev) => Math.max(0, prev - damage));
+            
+            const flashGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+            const flashMaterial = new THREE.MeshBasicMaterial({
+              color: 0xffff00,
+              transparent: true,
+              opacity: 1,
+            });
+            const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+            flash.position.copy(bot.position);
+            flash.position.y += 0.5;
+            scene.add(flash);
+            
+            setTimeout(() => scene.remove(flash), 100);
+          }
+        }
       });
 
       if (visualsEnabled.fullbright) {

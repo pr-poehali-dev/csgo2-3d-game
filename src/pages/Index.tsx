@@ -47,6 +47,7 @@ const Index = () => {
   const [currentWeapon, setCurrentWeapon] = useState<Weapon>(WEAPONS[0]);
   const [ammo, setAmmo] = useState(20);
   const [kills, setKills] = useState(0);
+  const [isDead, setIsDead] = useState(false);
   
   const shootSoundRef = useRef<HTMLAudioElement | null>(null);
   const hitSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -626,7 +627,13 @@ const Index = () => {
           
           if (canSeePlayer && Math.random() > 0.3) {
             const damage = Math.floor(Math.random() * 15) + 10;
-            setHealth((prev) => Math.max(0, prev - damage));
+            setHealth((prev) => {
+              const newHealth = Math.max(0, prev - damage);
+              if (newHealth === 0) {
+                setIsDead(true);
+              }
+              return newHealth;
+            });
             
             const flashGeometry = new THREE.SphereGeometry(0.2, 8, 8);
             const flashMaterial = new THREE.MeshBasicMaterial({
@@ -659,7 +666,9 @@ const Index = () => {
         scene.background = new THREE.Color(0x87ceeb);
       }
 
-      renderer.render(scene, camera);
+      if (!isDead) {
+        renderer.render(scene, camera);
+      }
     };
 
     animate();
@@ -683,7 +692,7 @@ const Index = () => {
       window.removeEventListener('resize', handleResize);
       mountRef.current?.removeChild(renderer.domElement);
     };
-  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled, isLoading, gameStarted, cameraMode]);
+  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled, isLoading, gameStarted, cameraMode, isDead]);
 
   const buyWeapon = (weapon: Weapon) => {
     if (money >= weapon.price) {
@@ -702,8 +711,68 @@ const Index = () => {
     setVisualsEnabled((prev) => ({ ...prev, [visual]: !prev[visual] }));
   };
 
+  const respawn = () => {
+    setHealth(100);
+    setIsDead(false);
+    setKills(0);
+    setMoney(16000);
+    setAmmo(20);
+    setCurrentWeapon(WEAPONS[0]);
+  };
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black">
+      {isDead && (
+        <div className="absolute inset-0 bg-black/90 z-50 flex items-center justify-center">
+          <div className="text-center space-y-8 px-8">
+            <div className="space-y-4">
+              <div className="text-7xl font-black text-red-600 animate-pulse">
+                WASTED
+              </div>
+              <div className="text-2xl text-gray-400">
+                Вы погибли
+              </div>
+            </div>
+
+            <div className="bg-gray-800/50 rounded-lg p-6 backdrop-blur-sm">
+              <div className="space-y-3 text-xl text-gray-300">
+                <div className="flex justify-between gap-8">
+                  <span>Убийств:</span>
+                  <span className="text-yellow-400 font-bold">{kills}</span>
+                </div>
+                <div className="flex justify-between gap-8">
+                  <span>Денег:</span>
+                  <span className="text-green-400 font-bold">${money}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 justify-center">
+              <Button
+                onClick={respawn}
+                className="text-xl py-6 px-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-lg shadow-2xl transform hover:scale-105 transition-all duration-200"
+              >
+                <Icon name="RotateCcw" size={24} className="mr-2" />
+                ВОЗРОДИТЬСЯ
+              </Button>
+              
+              <Button
+                onClick={() => {
+                  setIsDead(false);
+                  setShowMainMenu(true);
+                  setGameStarted(false);
+                }}
+                variant="outline"
+                className="text-xl py-6 px-12 bg-gray-800/80 hover:bg-gray-700/80 text-white border-gray-600 font-semibold rounded-lg backdrop-blur-sm"
+              >
+                <Icon name="Home" size={24} className="mr-2" />
+                МЕНЮ
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showMainMenu && (
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-black z-50">
           <div className="absolute inset-0" style={{

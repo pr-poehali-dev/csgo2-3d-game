@@ -30,6 +30,8 @@ const WEAPONS: Weapon[] = [
 const Index = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showMainMenu, setShowMainMenu] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const [showBuyMenu, setShowBuyMenu] = useState(false);
   const [showCheats, setShowCheats] = useState(false);
   const [showVisuals, setShowVisuals] = useState(false);
@@ -70,11 +72,19 @@ const Index = () => {
     hitSoundRef.current = new Audio('data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQAAAAA=');
     killSoundRef.current = new Audio('data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQAAAAA=');
     
-    setTimeout(() => setIsLoading(false), 2000);
+    setTimeout(() => {
+      setIsLoading(false);
+      setShowMainMenu(true);
+    }, 2000);
   }, []);
 
+  const startGame = () => {
+    setShowMainMenu(false);
+    setGameStarted(true);
+  };
+
   useEffect(() => {
-    if (!mountRef.current || isLoading) return;
+    if (!mountRef.current || isLoading || !gameStarted) return;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
@@ -435,7 +445,7 @@ const Index = () => {
       window.removeEventListener('resize', handleResize);
       mountRef.current?.removeChild(renderer.domElement);
     };
-  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled, isLoading]);
+  }, [ammo, currentWeapon, cheatsEnabled, visualsEnabled, isLoading, gameStarted]);
 
   const buyWeapon = (weapon: Weapon) => {
     if (money >= weapon.price) {
@@ -456,6 +466,103 @@ const Index = () => {
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black">
+      {showMainMenu && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-black z-50">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'url("data:image/svg+xml,%3Csvg width="100" height="100" xmlns="http://www.w3.org/2000/svg"%3E%3Cdefs%3E%3Cpattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"%3E%3Cpath d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/%3E%3C/pattern%3E%3C/defs%3E%3Crect width="100" height="100" fill="url(%23grid)" /%3E%3C/svg%3E")',
+          }} />
+          
+          <div className="relative h-full flex flex-col items-center justify-center">
+            <div className="text-center space-y-8 max-w-4xl px-8">
+              <div className="space-y-4">
+                <div className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-yellow-500 to-orange-600 animate-pulse">
+                  COUNTER-STRIKE
+                </div>
+                <div className="text-4xl font-bold text-blue-400 tracking-widest">
+                  GLOBAL OFFENSIVE 2
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 mt-12">
+                <Button
+                  onClick={startGame}
+                  className="text-2xl py-8 px-16 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold rounded-lg shadow-2xl transform hover:scale-105 transition-all duration-200"
+                >
+                  <Icon name="Play" size={32} className="mr-3" />
+                  ИГРАТЬ
+                </Button>
+                
+                <div className="flex gap-4 justify-center">
+                  <Button
+                    variant="outline"
+                    className="text-lg py-6 px-12 bg-gray-800/80 hover:bg-gray-700/80 text-white border-gray-600 font-semibold rounded-lg backdrop-blur-sm"
+                  >
+                    <Icon name="Settings" size={24} className="mr-2" />
+                    Настройки
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    className="text-lg py-6 px-12 bg-gray-800/80 hover:bg-gray-700/80 text-white border-gray-600 font-semibold rounded-lg backdrop-blur-sm"
+                  >
+                    <Icon name="Trophy" size={24} className="mr-2" />
+                    Достижения
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    className="text-lg py-6 px-12 bg-gray-800/80 hover:bg-gray-700/80 text-white border-gray-600 font-semibold rounded-lg backdrop-blur-sm"
+                  >
+                    <Icon name="Users" size={24} className="mr-2" />
+                    Друзья
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-12 space-y-3">
+                <div className="flex items-center justify-center gap-8 text-gray-400">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span>Онлайн: 847,291</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                    <span>В игре: 623,450</span>
+                  </div>
+                </div>
+                
+                <div className="text-gray-500 text-sm">
+                  <div>WebGL Edition • Version 2.0.1 • 2025</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute bottom-8 left-8 text-gray-500 text-sm space-y-1">
+              <div className="flex items-center gap-2">
+                <Icon name="Shield" size={16} />
+                <span>VAC Protection</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Icon name="Globe" size={16} />
+                <span>Region: Europe</span>
+              </div>
+            </div>
+
+            <div className="absolute bottom-8 right-8 flex gap-3">
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Icon name="Youtube" size={20} />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Icon name="Twitter" size={20} />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Icon name="MessageCircle" size={20} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {isLoading && (
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center z-50">
           <div className="text-center space-y-6">
@@ -476,9 +583,9 @@ const Index = () => {
           </div>
         </div>
       )}
-      <div ref={mountRef} className="w-full h-full" />
+      {gameStarted && <div ref={mountRef} className="w-full h-full" />}
 
-      <div className="absolute top-4 left-4 text-white font-bold space-y-2 pointer-events-none select-none">
+      {gameStarted && <div className="absolute top-4 left-4 text-white font-bold space-y-2 pointer-events-none select-none">
         <div className="bg-black/70 px-4 py-2 rounded-lg backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <Icon name="Heart" size={20} className="text-red-500" />
@@ -503,18 +610,18 @@ const Index = () => {
             <span className="text-xl">{kills} Kills</span>
           </div>
         </div>
-      </div>
+      </div>}
 
-      <div className="absolute top-4 right-4 text-white text-sm space-y-1 pointer-events-none select-none bg-black/50 px-3 py-2 rounded-lg backdrop-blur-sm">
+      {gameStarted && <div className="absolute top-4 right-4 text-white text-sm space-y-1 pointer-events-none select-none bg-black/50 px-3 py-2 rounded-lg backdrop-blur-sm">
         <div>WASD / ФЫВА - Движение</div>
         <div>Мышь - Обзор</div>
         <div>ЛКМ - Стрельба</div>
         <div>B - Меню закупки</div>
         <div>Q - Читы</div>
         <div>P - Визуалы</div>
-      </div>
+      </div>}
 
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+      {gameStarted && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
         <div className="relative">
           <div className="w-0.5 h-4 bg-green-400 absolute left-1/2 -translate-x-1/2 -top-6" />
           <div className="w-0.5 h-4 bg-green-400 absolute left-1/2 -translate-x-1/2 top-2" />
@@ -522,11 +629,11 @@ const Index = () => {
           <div className="h-0.5 w-4 bg-green-400 absolute top-1/2 -translate-y-1/2 right-2" />
           <div className="w-1 h-1 bg-green-400 rounded-full" />
         </div>
-      </div>
+      </div>}
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white font-bold text-xl bg-black/70 px-6 py-3 rounded-lg backdrop-blur-sm pointer-events-none select-none">
+      {gameStarted && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white font-bold text-xl bg-black/70 px-6 py-3 rounded-lg backdrop-blur-sm pointer-events-none select-none">
         {currentWeapon.name}
-      </div>
+      </div>}
 
       {showBuyMenu && (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center pointer-events-auto z-50">

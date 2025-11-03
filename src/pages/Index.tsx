@@ -31,6 +31,12 @@ const Index = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showMainMenu, setShowMainMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showMapSelect, setShowMapSelect] = useState(false);
+  const [showModeSelect, setShowModeSelect] = useState(false);
+  const [selectedMap, setSelectedMap] = useState('dust2');
+  const [selectedMode, setSelectedMode] = useState('competitive');
+  const [graphicsQuality, setGraphicsQuality] = useState('high');
   const [gameStarted, setGameStarted] = useState(false);
   const [showBuyMenu, setShowBuyMenu] = useState(false);
   const [showCheats, setShowCheats] = useState(false);
@@ -80,6 +86,18 @@ const Index = () => {
 
   const startGame = () => {
     setShowMainMenu(false);
+    setShowModeSelect(true);
+  };
+
+  const selectMode = (mode: string) => {
+    setSelectedMode(mode);
+    setShowModeSelect(false);
+    setShowMapSelect(true);
+  };
+
+  const selectMap = (map: string) => {
+    setSelectedMap(map);
+    setShowMapSelect(false);
     setGameStarted(true);
   };
 
@@ -169,36 +187,64 @@ const Index = () => {
     const createWeaponMesh = () => {
       const weaponGroup = new THREE.Group();
       
-      const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 8);
+      const barrelGeometry = new THREE.CylinderGeometry(0.025, 0.03, 1.0, 16);
       const barrelMaterial = new THREE.MeshStandardMaterial({
-        color: 0x1f2937,
-        metalness: 0.9,
-        roughness: 0.3,
+        color: 0x0a0a0a,
+        metalness: 0.95,
+        roughness: 0.2,
       });
       const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
       barrel.rotation.z = Math.PI / 2;
-      barrel.position.set(0.4, -0.15, -0.3);
+      barrel.position.set(0.5, -0.12, -0.35);
       weaponGroup.add(barrel);
 
-      const bodyGeometry = new THREE.BoxGeometry(0.15, 0.15, 0.4);
-      const bodyMaterial = new THREE.MeshStandardMaterial({
-        color: 0x374151,
-        metalness: 0.7,
-        roughness: 0.4,
+      const receiverGeometry = new THREE.BoxGeometry(0.25, 0.12, 0.5);
+      const receiverMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a,
+        metalness: 0.8,
+        roughness: 0.3,
       });
-      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-      body.position.set(0.1, -0.15, -0.3);
-      weaponGroup.add(body);
+      const receiver = new THREE.Mesh(receiverGeometry, receiverMaterial);
+      receiver.position.set(0.05, -0.12, -0.35);
+      weaponGroup.add(receiver);
 
-      const handleGeometry = new THREE.BoxGeometry(0.05, 0.15, 0.08);
-      const handleMaterial = new THREE.MeshStandardMaterial({
-        color: 0x4b5563,
+      const magazineGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.15);
+      const magazineMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2d2d2d,
+        metalness: 0.6,
+        roughness: 0.5,
       });
-      const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-      handle.position.set(0, -0.25, -0.25);
-      weaponGroup.add(handle);
+      const magazine = new THREE.Mesh(magazineGeometry, magazineMaterial);
+      magazine.position.set(0.05, -0.3, -0.3);
+      weaponGroup.add(magazine);
 
-      weaponGroup.position.set(0.3, -0.3, -0.5);
+      const stockGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.3);
+      const stockMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3d2817,
+        roughness: 0.8,
+      });
+      const stock = new THREE.Mesh(stockGeometry, stockMaterial);
+      stock.position.set(-0.15, -0.12, -0.3);
+      weaponGroup.add(stock);
+
+      const gripGeometry = new THREE.BoxGeometry(0.06, 0.18, 0.1);
+      const gripMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a,
+      });
+      const grip = new THREE.Mesh(gripGeometry, gripMaterial);
+      grip.position.set(0, -0.28, -0.28);
+      weaponGroup.add(grip);
+
+      const sightGeometry = new THREE.BoxGeometry(0.04, 0.04, 0.06);
+      const sightMaterial = new THREE.MeshStandardMaterial({
+        color: 0x000000,
+        metalness: 0.9,
+      });
+      const sight = new THREE.Mesh(sightGeometry, sightMaterial);
+      sight.position.set(0.15, -0.05, -0.35);
+      weaponGroup.add(sight);
+
+      weaponGroup.position.set(0.35, -0.28, -0.55);
       return weaponGroup;
     };
 
@@ -297,14 +343,17 @@ const Index = () => {
           );
 
           if (intersects.length > 0) {
+            const firstIntersect = intersects[0];
             const hitBot = botsRef.current.find(
-              (bot) => bot.mesh === intersects[0].object || bot.mesh === intersects[0].object.parent
+              (bot) => bot.mesh === firstIntersect.object || bot.mesh === firstIntersect.object.parent
             );
 
-            if (hitBot && cheatsEnabled.aimbot) {
-              hitBot.health = 0;
-            } else if (hitBot) {
-              hitBot.health -= currentWeapon.damage;
+            if (hitBot) {
+              if (cheatsEnabled.aimbot) {
+                hitBot.health = 0;
+              } else {
+                hitBot.health -= currentWeapon.damage;
+              }
             }
 
             if (hitBot && hitBot.health <= 0) {
@@ -495,6 +544,7 @@ const Index = () => {
                 <div className="flex gap-4 justify-center">
                   <Button
                     variant="outline"
+                    onClick={() => setShowSettings(true)}
                     className="text-lg py-6 px-12 bg-gray-800/80 hover:bg-gray-700/80 text-white border-gray-600 font-semibold rounded-lg backdrop-blur-sm"
                   >
                     <Icon name="Settings" size={24} className="mr-2" />
@@ -563,6 +613,158 @@ const Index = () => {
         </div>
       )}
       
+      {showModeSelect && (
+        <div className="absolute inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-50">
+          <Card className="p-8 w-[700px] bg-gray-900/95 border-gray-700">
+            <div className="text-center mb-8">
+              <h2 className="text-4xl font-bold text-white mb-2">Выбор режима игры</h2>
+              <p className="text-gray-400">Выберите режим для начала матча</p>
+            </div>
+            <div className="grid gap-4">
+              <Button
+                onClick={() => selectMode('bomb')}
+                className="text-xl py-8 bg-red-600 hover:bg-red-700 text-white font-bold"
+              >
+                <Icon name="Bomb" size={28} className="mr-3" />
+                Закладка бомбы
+              </Button>
+              <Button
+                onClick={() => selectMode('duel')}
+                className="text-xl py-8 bg-purple-600 hover:bg-purple-700 text-white font-bold"
+              >
+                <Icon name="Swords" size={28} className="mr-3" />
+                Дуэль 1 на 1
+              </Button>
+              <Button
+                onClick={() => selectMode('training')}
+                className="text-xl py-8 bg-blue-600 hover:bg-blue-700 text-white font-bold"
+              >
+                <Icon name="Target" size={28} className="mr-3" />
+                Тренировка с ботами
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => { setShowModeSelect(false); setShowMainMenu(true); }}
+              className="mt-6 w-full text-gray-400 hover:text-white"
+            >
+              Назад
+            </Button>
+          </Card>
+        </div>
+      )}
+
+      {showMapSelect && (
+        <div className="absolute inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-50">
+          <Card className="p-8 w-[900px] bg-gray-900/95 border-gray-700">
+            <div className="text-center mb-8">
+              <h2 className="text-4xl font-bold text-white mb-2">Выбор карты</h2>
+              <p className="text-gray-400">Режим: {selectedMode === 'bomb' ? 'Закладка бомбы' : selectedMode === 'duel' ? 'Дуэль' : 'Тренировка'}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                onClick={() => selectMap('dust2')}
+                className="text-lg py-12 bg-yellow-700 hover:bg-yellow-600 text-white font-bold flex-col"
+              >
+                <Icon name="Mountain" size={32} className="mb-2" />
+                <div>de_dust2</div>
+                <div className="text-sm opacity-70">Классика</div>
+              </Button>
+              <Button
+                onClick={() => selectMap('mirage')}
+                className="text-lg py-12 bg-orange-700 hover:bg-orange-600 text-white font-bold flex-col"
+              >
+                <Icon name="Sun" size={32} className="mb-2" />
+                <div>de_mirage</div>
+                <div className="text-sm opacity-70">Пустыня</div>
+              </Button>
+              <Button
+                onClick={() => selectMap('inferno')}
+                className="text-lg py-12 bg-red-700 hover:bg-red-600 text-white font-bold flex-col"
+              >
+                <Icon name="Flame" size={32} className="mb-2" />
+                <div>de_inferno</div>
+                <div className="text-sm opacity-70">Итальянская деревня</div>
+              </Button>
+              <Button
+                onClick={() => selectMap('nuke')}
+                className="text-lg py-12 bg-green-700 hover:bg-green-600 text-white font-bold flex-col"
+              >
+                <Icon name="Zap" size={32} className="mb-2" />
+                <div>de_nuke</div>
+                <div className="text-sm opacity-70">Ядерная станция</div>
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => { setShowMapSelect(false); setShowModeSelect(true); }}
+              className="mt-6 w-full text-gray-400 hover:text-white"
+            >
+              Назад
+            </Button>
+          </Card>
+        </div>
+      )}
+
+      {showSettings && (
+        <div className="absolute inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-50">
+          <Card className="p-8 w-[600px] bg-gray-900/95 border-gray-700">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-white">Настройки</h2>
+              <Button
+                variant="ghost"
+                onClick={() => setShowSettings(false)}
+                className="text-white"
+              >
+                <Icon name="X" size={24} />
+              </Button>
+            </div>
+            <div className="space-y-6">
+              <div>
+                <label className="text-white font-semibold mb-3 block">Качество графики</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <Button
+                    onClick={() => setGraphicsQuality('low')}
+                    variant={graphicsQuality === 'low' ? 'default' : 'outline'}
+                    className={graphicsQuality === 'low' ? 'bg-green-600' : ''}
+                  >
+                    Низкое
+                  </Button>
+                  <Button
+                    onClick={() => setGraphicsQuality('medium')}
+                    variant={graphicsQuality === 'medium' ? 'default' : 'outline'}
+                    className={graphicsQuality === 'medium' ? 'bg-green-600' : ''}
+                  >
+                    Среднее
+                  </Button>
+                  <Button
+                    onClick={() => setGraphicsQuality('high')}
+                    variant={graphicsQuality === 'high' ? 'default' : 'outline'}
+                    className={graphicsQuality === 'high' ? 'bg-green-600' : ''}
+                  >
+                    Высокое
+                  </Button>
+                </div>
+              </div>
+              <div className="bg-gray-800 p-4 rounded-lg space-y-2 text-sm text-gray-300">
+                <div className="flex justify-between">
+                  <span>Разрешение:</span>
+                  <span className="text-white">{window.innerWidth}x{window.innerHeight}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Тени:</span>
+                  <span className="text-white">{graphicsQuality === 'high' ? 'Вкл' : 'Выкл'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Сглаживание:</span>
+                  <span className="text-white">{graphicsQuality !== 'low' ? 'Вкл' : 'Выкл'}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {isLoading && (
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center z-50">
           <div className="text-center space-y-6">
@@ -585,7 +787,38 @@ const Index = () => {
       )}
       {gameStarted && <div ref={mountRef} className="w-full h-full" />}
 
-      {gameStarted && <div className="absolute top-4 left-4 text-white font-bold space-y-2 pointer-events-none select-none">
+      {gameStarted && (
+        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-4 pointer-events-none select-none z-10">
+          <div className="flex justify-between items-center">
+            <div className="flex gap-4">
+              <div className="bg-blue-600/90 px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-800 rounded-full flex items-center justify-center text-xs font-bold">
+                  👤
+                </div>
+                <div>
+                  <div className="text-white font-bold text-sm">Player1</div>
+                  <div className="text-blue-200 text-xs">{kills} kills</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              {botsRef.current.slice(0, 3).map((_, idx) => (
+                <div key={idx} className="bg-red-600/90 px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
+                  <div className="w-8 h-8 bg-red-800 rounded-full flex items-center justify-center text-xs font-bold">
+                    🤖
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-sm">Bot{idx + 1}</div>
+                    <div className="text-red-200 text-xs">AI</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {gameStarted && <div className="absolute top-20 left-4 text-white font-bold space-y-2 pointer-events-none select-none">
         <div className="bg-black/70 px-4 py-2 rounded-lg backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <Icon name="Heart" size={20} className="text-red-500" />
